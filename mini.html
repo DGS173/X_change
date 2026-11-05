@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>X_change</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f6f4ef;--fg:#16231c;--card:#ffffff;--hint:#667068;--accent:#0f7a4d;--accentfg:#ffffff;--line:#d9ddd5;--err:#c4301f;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root{--bg:#111a15;--fg:#eef3ee;--card:#1b2620;--hint:#8fa095;--accent:#3fcf8e;--accentfg:#07130d;--line:#2c3a32;--err:#ff7b6b}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+h1{font-size:22px;margin:0 0 2px}
+.sub{color:var(--hint);margin:0 0 18px;font-size:14px}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+.opt{font-weight:400;color:var(--hint)}
+.row{display:flex;gap:8px}
+.chip{flex:1;padding:12px 6px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;text-align:center}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accentfg)}
+input{width:100%;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:inherit}
+input:focus,.chip:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hintline{font-size:13px;color:var(--hint);margin-top:4px}
+.err{font-size:13px;color:var(--err);margin-top:4px;min-height:0}
+.recap{margin-top:18px;padding:16px;border-radius:16px;background:var(--card);border:1.5px solid var(--line)}
+.recap dl{margin:0 0 12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;color:var(--hint)}
+.recap dd{margin:0;text-align:right;color:var(--fg)}
+.get{font-size:13px;color:var(--hint)}
+.big{font-size:34px;line-height:1.1;font-weight:800;color:var(--accent);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.go{width:100%;margin-top:18px;padding:15px;border:0;border-radius:14px;background:var(--accent);color:var(--accentfg);font:inherit;font-weight:700;font-size:17px}
+.go:disabled{opacity:.5}
+.note{font-size:12.5px;color:var(--hint);margin-top:12px}
+</style>
+</head>
+<body>
+<h1>Vendre ma crypto</h1>
+<p class="sub">Recevez du Mobile Money en quelques minutes.</p>
+
+<label>Crypto à vendre</label>
+<div class="row" id="cryptos">
+  <button type="button" class="chip" data-v="USDT TRC20" aria-pressed="true">USDT TRC20</button>
+  <button type="button" class="chip" data-v="USDT BEP20" aria-pressed="false">USDT BEP20</button>
+</div>
+
+<label for="montant">Montant (minimum 20 USDT)</label>
+<input id="montant" inputmode="decimal" autocomplete="off" placeholder="Ex. 50">
+<div class="err" id="e-montant"></div>
+
+<div class="recap" aria-live="polite">
+  <dl>
+    <dt>Frais de service (3 %)</dt><dd id="r-frais">–</dd>
+    <dt>Frais de réseau</dt><dd id="r-reseau">–</dd>
+    <dt>Taux</dt><dd>1 USDT = 500 FCFA</dd>
+  </dl>
+  <div class="get">Vous recevez</div>
+  <div class="big" id="r-fcfa">0 FCFA</div>
+</div>
+
+<label>Recevoir sur</label>
+<div class="row" id="ops">
+  <button type="button" class="chip" data-v="MTN" aria-pressed="false">MTN</button>
+  <button type="button" class="chip" data-v="Moov" aria-pressed="false">Moov</button>
+  <button type="button" class="chip" data-v="Celtis" aria-pressed="false">Celtis</button>
+</div>
+<div class="err" id="e-op"></div>
+
+<label for="numero">Numéro Mobile Money</label>
+<input id="numero" inputmode="tel" autocomplete="off" placeholder="01XXXXXXXX">
+<div class="hintline">10 chiffres, commençant par 01. Le numéro doit correspondre au réseau choisi.</div>
+<div class="err" id="e-numero"></div>
+
+<label for="nom">Nom et prénom du titulaire</label>
+<input id="nom" autocomplete="off" placeholder="Koffi Adjovi">
+<div class="hintline">Exactement comme sur le compte Mobile Money.</div>
+<div class="err" id="e-nom"></div>
+
+<label for="email">E-mail <span class="opt">(facultatif)</span></label>
+<input id="email" type="email" inputmode="email" autocomplete="off" placeholder="nom@gmail.com">
+<div class="hintline">Pour recevoir l’adresse de paiement par e-mail.</div>
+<div class="err" id="e-email"></div>
+
+<button type="button" class="go" id="go">Continuer</button>
+<p class="note">Après cette étape, le bot vous envoie l’adresse de paiement. Vous avez 20 minutes pour envoyer la crypto.</p>
+
+<script>
+var tg = window.Telegram && window.Telegram.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+}
+var TAUX = 500, FRAIS = 0.03, MIN = 20;
+var RESEAU = {"USDT TRC20": 1.0, "USDT BEP20": 0.5};
+var crypto = "USDT TRC20", op = null;
+var $ = function (id) { return document.getElementById(id); };
+
+function fcfaTxt(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+function lireMontant() {
+  var m = parseFloat($("montant").value.replace(",", "."));
+  return isFinite(m) ? m : NaN;
+}
+function calcul() {
+  var m = lireMontant();
+  if (!(m >= MIN)) {
+    $("r-frais").textContent = "–"; $("r-reseau").textContent = "–";
+    $("r-fcfa").textContent = "0 FCFA"; return;
+  }
+  var frais = m * FRAIS, reseau = RESEAU[crypto];
+  $("r-frais").textContent = frais.toFixed(2) + " USDT";
+  $("r-reseau").textContent = reseau.toFixed(2) + " USDT";
+  $("r-fcfa").textContent = fcfaTxt((m - frais - reseau) * TAUX) + " FCFA";
+}
+function groupe(id, cb) {
+  $(id).addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    Array.prototype.forEach.call($(id).children, function (c) { c.setAttribute("aria-pressed", "false"); });
+    b.setAttribute("aria-pressed", "true"); cb(b.getAttribute("data-v"));
+  });
+}
+groupe("cryptos", function (v) { crypto = v; calcul(); });
+groupe("ops", function (v) { op = v; $("e-op").textContent = ""; });
+$("montant").addEventListener("input", calcul);
+
+function normNum(s) {
+  var d = s.replace(/\D/g, "");
+  if (d.indexOf("229") === 0 && d.length === 13) d = d.slice(3);
+  if (d.length === 8) d = "01" + d;
+  return (d.length === 10 && d.indexOf("01") === 0) ? d : null;
+}
+
+$("go").addEventListener("click", function () {
+  var ok = true, m = lireMontant();
+  ["montant", "op", "numero", "nom", "email"].forEach(function (k) { $("e-" + k).textContent = ""; });
+  if (!(m >= MIN)) { $("e-montant").textContent = "Entrez un montant d’au moins 20 USDT."; ok = false; }
+  if (!op) { $("e-op").textContent = "Choisissez MTN, Moov ou Celtis."; ok = false; }
+  var numero = normNum($("numero").value);
+  if (!numero) { $("e-numero").textContent = "Numéro invalide. Entrez 10 chiffres commençant par 01."; ok = false; }
+  var nom = $("nom").value.split(/\s+/).filter(Boolean).join(" ");
+  if (!/^[A-Za-zÀ-ÖØ-öø-ÿ'’\- ]{3,60}$/.test(nom) || nom.split(" ").length < 2) {
+    $("e-nom").textContent = "Entrez votre nom et votre prénom (lettres uniquement)."; ok = false;
+  }
+  var email = $("email").value.trim();
+  if (email && !/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(email)) {
+    $("e-email").textContent = "E-mail invalide. Exemple : nom@gmail.com"; ok = false;
+  }
+  if (!ok) return;
+  if (!tg || !tg.sendData) { alert("Ouvrez cette page depuis le bot Telegram."); return; }
+  tg.sendData(JSON.stringify({
+    crypto: crypto, montant: Math.round(m * 100) / 100, operateur: op,
+    numero: numero, nom: nom, email: email || null
+  }));
+});
+calcul();
+</script>
+</body>
+</html>
