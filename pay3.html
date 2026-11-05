@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paiement X_change</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://pst.net/merchant-widget/pst-merchant-widget.js"></script>
+<style>
+:root{--bg:#f6f4ef;--fg:#16231c;--card:#ffffff;--hint:#667068;--accent:#0f7a4d;--accentfg:#ffffff;--line:#d9ddd5;--err:#c4301f}
+@media (prefers-color-scheme:dark){:root{--bg:#111a15;--fg:#eef3ee;--card:#1b2620;--hint:#8fa095;--accent:#3fcf8e;--accentfg:#07130d;--line:#2c3a32;--err:#ff7b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--hint);margin:0 0 16px;font-size:14px}
+.box{margin-top:16px;padding:14px;border-radius:14px;background:var(--card);border:1.5px solid var(--line)}
+.ok{border-color:var(--accent)}
+.bad{border-color:var(--err);color:var(--err)}
+.go{width:100%;margin-top:16px;padding:15px;border:0;border-radius:14px;background:var(--accent);color:var(--accentfg);font:inherit;font-weight:700;font-size:17px}
+</style>
+</head>
+<body>
+<h1>Paiement</h1>
+<p class="sub" id="info">Chargement…</p>
+<div id="pst-merchant"></div>
+<div class="box" id="msg" hidden></div>
+<p class="sub" id="detail"></p>
+<button type="button" class="go" id="retour" hidden>Retour au chat Telegram</button>
+
+<script>
+var tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+var p = new URLSearchParams(location.search);
+var cmd = p.get("cmd") || "";
+var m = parseFloat(p.get("amount") || "");
+function detail(e) {
+  var t = "";
+  try { t = (e && (e.message || e.error || e.code)) || JSON.stringify(e) || String(e); } catch (x) { t = String(e); }
+  document.getElementById("detail").textContent = "Détail technique : " + String(t).slice(0, 220);
+}
+function montrer(t, cls) {
+  var b = document.getElementById("msg");
+  b.textContent = t; b.className = "box " + (cls || ""); b.hidden = false;
+}
+document.getElementById("retour").addEventListener("click", function () {
+  if (tg && tg.close) tg.close();
+});
+if (!/^XC\d{6}$/.test(cmd) || !isFinite(m) || m < 20 || m > 100000) {
+  document.getElementById("info").textContent = "Lien invalide. Ouvrez cette page depuis le bot Telegram.";
+} else if (!window.PSTMerchant) {
+  document.getElementById("info").textContent = "Commande " + cmd + " · " + m.toFixed(2) + " USD";
+  montrer("Le module de paiement n’a pas pu se charger. Vérifiez votre connexion et réessayez.", "bad");
+} else {
+  document.getElementById("info").textContent = "Commande " + cmd + " · " + m.toFixed(2) + " USD. Choisissez votre crypto ci-dessous.";
+  var conf = {
+    widget_id: "01a1a583-d22a-722d-8bd9-cf675c8f1b98",
+    amount: m.toFixed(2),
+    target_currency: "USD",
+    onSuccess: function () {
+      montrer("✅ Paiement envoyé. Retournez dans Telegram et appuyez sur « J’ai payé ».", "ok");
+      document.getElementById("retour").hidden = false;
+    },
+    onFail: function () {
+      montrer("Le paiement a échoué. Vous pouvez réessayer.", "bad");
+    },
+    onError: function (e) {
+      console.log(e);
+      montrer("Une erreur est survenue. Réessayez ou contactez le support.", "bad");
+      detail(e);
+    }
+  };
+  // Variante de secours (test) : ajouter &mode=client à l'adresse
+  if (p.get("mode") === "client") { conf.target_network = "fiat"; conf.allow_conversion = true; }
+  if (p.get("noorder") !== "1") conf.order = { id: cmd };
+  window.PSTMerchant.loadWidget(conf).then(function () {}, function (e) {
+    console.error(e);
+    montrer("Le paiement n’a pas pu démarrer. Réessayez plus tard.", "bad");
+    detail(e);
+  });
+}
+</script>
+</body>
+</html>
