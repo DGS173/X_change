@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>X_change</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#f6f4ef;--fg:#16231c;--card:#fff;--hint:#667068;--accent:#0f7a4d;--accentfg:#fff;--line:#d9ddd5;--err:#c4301f;--warnbg:#fff3cd;--warnfg:#7a4b00}
+@media (prefers-color-scheme:dark){:root{--bg:#111a15;--fg:#eef3ee;--card:#1b2620;--hint:#8fa095;--accent:#3fcf8e;--accentfg:#07130d;--line:#2c3a32;--err:#ff7b6b;--warnbg:#3a3010;--warnfg:#ffd98a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px 16px calc(28px + env(safe-area-inset-bottom,0px))}
+h1{font-size:22px;margin:0}
+h2{font-size:19px;margin:0 0 6px}
+.sub{color:var(--hint);margin:2px 0 12px;font-size:14px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pill{font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;background:var(--accent);color:var(--accentfg);white-space:nowrap}
+.pill.off{background:var(--err);color:#fff}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.facts span{font-size:12px;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--hint)}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+.opt{font-weight:400;color:var(--hint)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chip{padding:12px 4px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;font-size:14px;text-align:center}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accentfg)}
+input,textarea{width:100%;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);font:inherit}
+.inrow{display:flex;align-items:center;gap:8px}
+.inrow b{min-width:48px;text-align:right}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hintline{font-size:13px;color:var(--hint);margin-top:4px}
+.err{font-size:13px;color:var(--err);margin-top:4px}
+.recap{margin-top:16px;padding:16px;border-radius:16px;background:var(--card);border:1.5px solid var(--line)}
+.recap dl{margin:0 0 10px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;color:var(--hint)}
+.recap dd{margin:0;text-align:right;color:var(--fg)}
+.get{font-size:13px;color:var(--hint)}
+.big{font-size:32px;line-height:1.1;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.go{width:100%;margin-top:16px;padding:15px;border:0;border-radius:14px;background:var(--accent);color:var(--accentfg);font:inherit;font-weight:700;font-size:17px}
+.go:disabled{opacity:.5}
+.ghost{background:transparent;color:var(--fg);border:1.5px solid var(--line)}
+.row2{display:flex;gap:8px;margin-top:14px}
+.row2 .go{margin-top:0;font-size:15px;padding:12px}
+.card{margin-top:12px;padding:16px;border-radius:16px;background:var(--card);border:1.5px solid var(--line);text-align:center}
+#qr{display:inline-block;background:#fff;padding:10px;border-radius:12px;min-height:20px}
+.addr{margin:12px 0 8px;padding:12px;border-radius:12px;border:1.5px dashed var(--line);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;word-break:break-all;text-align:left}
+.warn{margin-top:12px;padding:12px;border-radius:12px;background:var(--warnbg);color:var(--warnfg);font-size:14px;text-align:left}
+.note{font-size:12.5px;color:var(--hint);margin-top:12px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="ecran-form">
+  <div class="top">
+    <div><h1>X_change</h1><p class="sub">Crypto vers Mobile Money, rapidement.</p></div>
+    <span class="pill" id="etat">…</span>
+  </div>
+  <div class="facts"><span>Frais 3 %</span><span>Minimum 20 USDT</span><span>06h00 – 00h00 (Bénin)</span></div>
+  <div class="err" id="e-ferme" hidden>Service fermé pour le moment. Nous travaillons de 06h00 à 00h00 (heure du Bénin). Merci de revenir à partir de 06h00.</div>
+
+  <label>Je donne</label>
+  <div class="grid" id="cryptos">
+    <button type="button" class="chip" data-v="USDT TRC20" aria-pressed="true">USDT<br>TRC20</button>
+    <button type="button" class="chip" data-v="USDT ERC20" aria-pressed="false">USDT<br>ERC20</button>
+    <button type="button" class="chip" data-v="BTC" aria-pressed="false">BTC</button>
+    <button type="button" class="chip" data-v="BNB BSC" aria-pressed="false">BNB<br>BSC</button>
+    <button type="button" class="chip" data-v="TRX" aria-pressed="false">TRX</button>
+  </div>
+
+  <label for="montant">Montant que vous envoyez</label>
+  <div class="inrow"><input id="montant" inputmode="decimal" autocomplete="off" placeholder="Ex. 50"><b id="unite">USDT</b></div>
+  <div class="hintline">Valeur minimum : 20 USDT.</div>
+  <div class="err" id="e-montant"></div>
+
+  <div class="recap" aria-live="polite">
+    <dl>
+      <dt>Valeur</dt><dd id="r-val">–</dd>
+      <dt>Frais de service (3 %)</dt><dd id="r-frais">–</dd>
+      <dt>Frais de réseau</dt><dd id="r-reseau">–</dd>
+      <dt>Taux</dt><dd>1 USDT = 500 FCFA</dd>
+    </dl>
+    <div class="get">Je reçois</div>
+    <div class="big" id="r-fcfa">0 FCFA</div>
+  </div>
+
+  <label>Je reçois sur</label>
+  <div class="grid" id="ops">
+    <button type="button" class="chip" data-v="MTN" aria-pressed="false">MTN</button>
+    <button type="button" class="chip" data-v="Moov" aria-pressed="false">Moov</button>
+    <button type="button" class="chip" data-v="Celtis" aria-pressed="false">Celtis Cash</button>
+  </div>
+  <div class="err" id="e-op"></div>
+
+  <label for="numero">Numéro Mobile Money</label>
+  <input id="numero" inputmode="tel" autocomplete="off" placeholder="01XXXXXXXX">
+  <div class="hintline">10 chiffres, commençant par 01, sur le réseau choisi.</div>
+  <div class="err" id="e-numero"></div>
+
+  <label for="nom">Nom et prénom du titulaire</label>
+  <input id="nom" autocomplete="off" placeholder="Koffi Adjovi">
+  <div class="err" id="e-nom"></div>
+
+  <label for="email">E-mail <span class="opt">(facultatif)</span></label>
+  <input id="email" type="email" inputmode="email" autocomplete="off" placeholder="nom@gmail.com">
+  <div class="err" id="e-email"></div>
+
+  <button type="button" class="go" id="continuer">Continuer</button>
+  <div class="row2">
+    <button type="button" class="go ghost" id="hist">📂 Mon historique</button>
+    <button type="button" class="go ghost" id="sup">🆘 Support</button>
+  </div>
+</div>
+
+<div id="ecran-adresse" hidden>
+  <h2 id="b-titre">Envoyez vos crypto</h2>
+  <p class="sub">Réseau : <b id="b-reseau"></b></p>
+  <div class="card">
+    <div id="qr"></div>
+    <div class="addr" id="b-adr"></div>
+    <button type="button" class="go" id="copier" style="margin-top:0">Copier l’adresse</button>
+  </div>
+  <div class="warn" id="b-warn"></div>
+  <label for="txid">TXID de l’envoi <span class="opt">(facultatif, recommandé)</span></label>
+  <input id="txid" autocomplete="off" placeholder="Collez l’identifiant de transaction">
+  <div class="err" id="e-txid"></div>
+  <button type="button" class="go" id="envoye">✅ J’ai envoyé mes crypto</button>
+  <button type="button" class="go ghost" id="retour" style="margin-top:10px">← Modifier ma demande</button>
+  <p class="note">Après votre confirmation, la page se ferme. Nous vérifions la réception, puis nous envoyons votre Mobile Money. Vous suivez tout dans le chat et dans « Mon espace ».</p>
+</div>
+
+<div id="ecran-support" hidden>
+  <h2>Support X_change</h2>
+  <p class="sub">Écrivez votre message. Indiquez votre numéro de commande si vous en avez un.</p>
+  <textarea id="smsg" rows="6" maxlength="800" placeholder="Votre message…"></textarea>
+  <div class="err" id="e-sup"></div>
+  <button type="button" class="go" id="sup-envoyer">Envoyer au support</button>
+  <button type="button" class="go ghost" id="sup-retour" style="margin-top:10px">← Retour</button>
+</div>
+
+<script>
+var tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+var TAUX = 500, FRAIS = 0.03, MIN = 20;
+var C = {
+  "USDT TRC20": {unite: "USDT", reseau: "TRON (TRC20)", adr: "TA3YRcpKy1Fqb6SwFoPi8LvbXzGL3LhCrK", stable: true, frais: 1.0},
+  "USDT ERC20": {unite: "USDT", reseau: "Ethereum (ERC20)", adr: "0xbE5017a66413944d5b390Fbe27F4462658aa5F87", stable: true, frais: 3.0},
+  "BTC": {unite: "BTC", reseau: "Bitcoin (BTC)", adr: "bc1qrnc3zl9y9jmjxhhqz6q9kfu8xw436qs6c8x9zu", stable: false, sym: "BTCUSDT", gecko: "bitcoin", frais: 2.0},
+  "BNB BSC": {unite: "BNB", reseau: "BNB Smart Chain (BSC)", adr: "0xbE5017a66413944d5b390Fbe27F4462658aa5F87", stable: false, sym: "BNBUSDT", gecko: "binancecoin", frais: 0.5},
+  "TRX": {unite: "TRX", reseau: "TRON (TRC20)", adr: "TA3YRcpKy1Fqb6SwFoPi8LvbXzGL3LhCrK", stable: false, sym: "TRXUSDT", gecko: "tron", frais: 1.0}
+};
+var cur = "USDT TRC20", op = null, valeur = null, form = null, seq = 0, cache = {};
+var $ = function (id) { return document.getElementById(id); };
+
+function fcfaTxt(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+function fmtQ(q) { return q.toFixed(8).replace(/0+$/, "").replace(/\.$/, ""); }
+function lireQ() { var q = parseFloat($("montant").value.replace(",", ".")); return isFinite(q) ? q : NaN; }
+function ouvert() { return ((new Date().getUTCHours() + 1) % 24) >= 6; }
+function renderHeure() {
+  var o = ouvert();
+  $("etat").textContent = o ? "Ouvert" : "Fermé";
+  $("etat").className = "pill" + (o ? "" : " off");
+  $("e-ferme").hidden = o;
+}
+renderHeure(); setInterval(renderHeure, 60000);
+
+function ecran(id) {
+  ["ecran-form", "ecran-adresse", "ecran-support"].forEach(function (e) { $(e).hidden = (e !== id); });
+  window.scrollTo(0, 0);
+}
+function ft(url, ms) {
+  var ctl = new AbortController();
+  var t = setTimeout(function () { ctl.abort(); }, ms);
+  return fetch(url, {signal: ctl.signal}).then(function (r) {
+    clearTimeout(t);
+    if (!r.ok) throw new Error("http");
+    return r.json();
+  });
+}
+async function prix(key) {
+  var c = C[key];
+  if (c.stable) return 1;
+  var e = cache[key];
+  if (e && Date.now() - e.t < 60000) return e.p;
+  var p = null;
+  try { p = parseFloat((await ft("https://api.binance.com/api/v3/ticker/price?symbol=" + c.sym, 6000)).price); } catch (x) {}
+  if (!(p > 0)) {
+    try { p = (await ft("https://api.coingecko.com/api/v3/simple/price?ids=" + c.gecko + "&vs_currencies=usd", 6000))[c.gecko].usd; } catch (y) {}
+  }
+  if (p > 0) { cache[key] = {p: p, t: Date.now()}; return p; }
+  return e ? e.p : null;
+}
+async function maj() {
+  var my = ++seq, q = lireQ(), c = C[cur];
+  $("unite").textContent = c.unite;
+  if (!(q > 0)) {
+    valeur = null; $("r-val").textContent = "–"; $("r-frais").textContent = "–";
+    $("r-reseau").textContent = "–"; $("r-fcfa").textContent = "0 FCFA"; return;
+  }
+  $("r-val").textContent = "…";
+  var p = await prix(cur);
+  if (my !== seq) return;
+  if (!p) { valeur = null; $("r-val").textContent = "Cours indisponible"; $("r-fcfa").textContent = "—"; return; }
+  valeur = q * p;
+  var frais = valeur * FRAIS;
+  $("r-val").textContent = "≈ " + valeur.toFixed(2) + " USDT";
+  $("r-frais").textContent = frais.toFixed(2) + " USDT";
+  $("r-reseau").textContent = c.frais.toFixed(2) + " USDT";
+  $("r-fcfa").textContent = valeur >= MIN ? fcfaTxt((valeur - frais - c.frais) * TAUX) + " FCFA" : "0 FCFA";
+}
+function groupe(id, cb) {
+  $(id).addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    Array.prototype.forEach.call($(id).children, function (x) { x.setAttribute("aria-pressed", "false"); });
+    b.setAttribute("aria-pressed", "true"); cb(b.getAttribute("data-v"));
+  });
+}
+groupe("cryptos", function (v) { cur = v; maj(); });
+groupe("ops", function (v) { op = v; $("e-op").textContent = ""; });
+$("montant").addEventListener("input", maj);
+maj();
+
+function normNum(s) {
+  var d = s.replace(/\D/g, "");
+  if (d.indexOf("229") === 0 && d.length === 13) d = d.slice(3);
+  if (d.length === 8) d = "01" + d;
+  return (d.length === 10 && d.indexOf("01") === 0) ? d : null;
+}
+function envoyer(obj) {
+  if (!tg || !tg.sendData) { alert("Ouvrez cette page depuis le bot Telegram."); return; }
+  tg.sendData(JSON.stringify(obj));
+}
+
+$("continuer").addEventListener("click", function () {
+  ["montant", "op", "numero", "nom", "email"].forEach(function (k) { $("e-" + k).textContent = ""; });
+  if (!ouvert()) { renderHeure(); window.scrollTo(0, 0); return; }
+  var ok = true, q = lireQ();
+  if (!(q > 0) || valeur === null || valeur < MIN) {
+    $("e-montant").textContent = valeur === null && q > 0 ? "Cours indisponible, réessayez dans un instant." : "La valeur doit être d’au moins 20 USDT.";
+    ok = false;
+  }
+  if (!op) { $("e-op").textContent = "Choisissez MTN, Moov ou Celtis Cash."; ok = false; }
+  var numero = normNum($("numero").value);
+  if (!numero) { $("e-numero").textContent = "Numéro invalide. Entrez 10 chiffres commençant par 01."; ok = false; }
+  var nom = $("nom").value.split(/\s+/).filter(Boolean).join(" ");
+  if (!/^[A-Za-zÀ-ÖØ-öø-ÿ'’\- ]{3,60}$/.test(nom) || nom.split(" ").length < 2) {
+    $("e-nom").textContent = "Entrez votre nom et votre prénom (lettres uniquement)."; ok = false;
+  }
+  var email = $("email").value.trim();
+  if (email && !/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(email)) {
+    $("e-email").textContent = "E-mail invalide. Exemple : nom@gmail.com"; ok = false;
+  }
+  if (!ok) return;
+  form = {q: q, numero: numero, nom: nom, email: email};
+  var c = C[cur];
+  $("b-titre").textContent = "Envoyez exactement " + fmtQ(q) + " " + c.unite;
+  $("b-reseau").textContent = c.reseau;
+  $("b-adr").textContent = c.adr;
+  $("b-warn").textContent = "⚠️ N’envoyez que du " + c.unite + " via le réseau " + c.reseau + " à cette adresse, sous peine de perdre vos fonds.";
+  $("qr").innerHTML = "";
+  if (window.QRCode) {
+    try { new QRCode($("qr"), {text: c.adr, width: 176, height: 176, correctLevel: QRCode.CorrectLevel.M}); } catch (e) {}
+  }
+  $("copier").textContent = "Copier l’adresse";
+  $("txid").value = ""; $("e-txid").textContent = "";
+  ecran("ecran-adresse");
+});
+
+$("copier").addEventListener("click", function () {
+  var t = C[cur].adr, b = $("copier");
+  function ok() { b.textContent = "Adresse copiée ✓"; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(ok, function () { fallback(); });
+  } else { fallback(); }
+  function fallback() {
+    var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); ok(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+});
+$("retour").addEventListener("click", function () { ecran("ecran-form"); });
+$("envoye").addEventListener("click", function () {
+  var txid = $("txid").value.trim();
+  if (txid && !/^(0x)?[A-Za-z0-9]{16,128}$/.test(txid)) {
+    $("e-txid").textContent = "TXID invalide. Collez-le tel quel, ou laissez vide."; return;
+  }
+  envoyer({
+    action: "commande", crypto: cur, quantite: fmtQ(form.q),
+    valeur_usdt: Math.round(valeur * 100) / 100, operateur: op,
+    numero: form.numero, nom: form.nom, email: form.email || null, txid: txid || null
+  });
+});
+$("hist").addEventListener("click", function () { envoyer({action: "historique"}); });
+$("sup").addEventListener("click", function () { ecran("ecran-support"); });
+$("sup-retour").addEventListener("click", function () { ecran("ecran-form"); });
+$("sup-envoyer").addEventListener("click", function () {
+  var t = $("smsg").value.trim();
+  if (t.length < 5) { $("e-sup").textContent = "Écrivez votre message (au moins 5 caractères)."; return; }
+  envoyer({action: "support", message: t});
+});
+</script>
+</body>
+</html>
